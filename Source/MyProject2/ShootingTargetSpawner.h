@@ -30,6 +30,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Spawner", meta = (ClampMin = 100, ClampMax = 10000))
 	float SpawnAreaHalfSize = 500.f;
+	
+	UPROPERTY(EditAnywhere, Category = "Spawner", meta = (ClampMin = 0))
+	int32 MinimumGoalScore = 100;
 
 	void SpawnTargets();
 };

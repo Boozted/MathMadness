@@ -35,7 +35,11 @@ void AShootingTargetSpawner::SpawnTargets()
         return;
     }
 
-    int32 NumTargets = FMath::RandRange(MinTargets, MaxTargets);
+    struct FTargetData
+    {
+        ETargetOperator Op;
+        int32 Value;
+    };
 
     TArray<ETargetOperator> Operators = {
         ETargetOperator::Add,
@@ -44,18 +48,18 @@ void AShootingTargetSpawner::SpawnTargets()
         ETargetOperator::Divide
     };
 
-    struct FTargetData
-    {
-        ETargetOperator Op;
-        int32 Value;
-    };
-
     TArray<FTargetData> TargetData;
+    float RunningScore = 0.f;
 
+    // always start with Add so there is a base score
     TargetData.Add({ ETargetOperator::Add, FMath::RandRange(10, 50) });
+    RunningScore += TargetData[0].Value;
 
-    for (int32 i = 1; i < NumTargets; i++)
+    int32 Attempts = 0;
+    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets && Attempts < 100)
     {
+        Attempts++;
+
         ETargetOperator Op = Operators[FMath::RandRange(0, Operators.Num() - 1)];
         int32 Value = 0;
 
@@ -73,31 +77,43 @@ void AShootingTargetSpawner::SpawnTargets()
             Value = FMath::RandRange(10, 50);
         }
 
-        TargetData.Add({ Op, Value });
-    }
-
-    float RunningScore = 0.f;
-    for (const FTargetData& Data : TargetData)
-    {
-        switch (Data.Op)
+        // simulate what this would do to the score
+        float TestScore = RunningScore;
+        switch (Op)
         {
-            case ETargetOperator::Add:      RunningScore += Data.Value; break;
-            case ETargetOperator::Subtract: RunningScore -= Data.Value; break;
-            case ETargetOperator::Multiply: RunningScore *= Data.Value; break;
+            case ETargetOperator::Add:      TestScore += Value; break;
+            case ETargetOperator::Subtract: TestScore -= Value; break;
+            case ETargetOperator::Multiply: TestScore *= Value; break;
             case ETargetOperator::Divide:
-                if (Data.Value != 0) RunningScore /= Data.Value;
+                if (Value != 0) TestScore /= Value;
                 break;
+        }
+
+        // only add this target if it keeps the score positive and moving toward goal
+        if (TestScore > 0)
+        {
+            TargetData.Add({ Op, Value });
+            RunningScore = TestScore;
         }
     }
 
-    int32 GoalScore = FMath::Abs(FMath::RoundToInt(RunningScore * 0.7f));
+    // if we still haven't hit minimum, pad with Add targets
+    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets)
+    {
+        int32 Value = FMath::RandRange(10, 50);
+        TargetData.Add({ ETargetOperator::Add, Value });
+        RunningScore += Value;
+    }
+
+    int32 GoalScore = MinimumGoalScore;
 
     AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode());
     if (GM)
     {
         GM->SetGoalScore(GoalScore);
         GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
-            FString::Printf(TEXT("Goal Score: %d"), GoalScore));
+            FString::Printf(TEXT("Goal Score: %d | Max Possible: %d | Targets: %d"),
+                GoalScore, FMath::RoundToInt(RunningScore), TargetData.Num()));
     }
 
     for (const FTargetData& Data : TargetData)
