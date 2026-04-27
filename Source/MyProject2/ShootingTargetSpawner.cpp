@@ -41,76 +41,99 @@ void AShootingTargetSpawner::SpawnTargets()
         int32 Value;
     };
 
-    // build operator list based on settings
-    TArray<ETargetOperator> Operators;
-    Operators.Add(ETargetOperator::Add);
-    if (bAllowSubtract) Operators.Add(ETargetOperator::Subtract);
-    if (bAllowMultiply) Operators.Add(ETargetOperator::Multiply);
-    if (bAllowDivide)   Operators.Add(ETargetOperator::Divide);
+    int32 TargetCountLimit = FMath::RandRange(MinTargets, MaxTargets);
 
     TArray<FTargetData> TargetData;
     float RunningScore = 0.f;
+    int32 TrueMaxPossible = 0;
 
-    // always start with Add so there is a base score
+    // always start with Add
     int32 FirstValue = FMath::RandRange(AddValueMin, AddValueMax);
     TargetData.Add({ ETargetOperator::Add, FirstValue });
     RunningScore += FirstValue;
+    TrueMaxPossible += FirstValue;
 
-    int32 Attempts = 0;
-    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets && Attempts < 200)
+    // phase 1 — build score with Add and Multiply
+    int32 BuildPhaseCount = FMath::Max(1, TargetCountLimit / 2);
+    for (int32 i = 1; i < BuildPhaseCount; i++)
     {
-        Attempts++;
+        bool bUseMultiply = bAllowMultiply && FMath::RandRange(0, 9) < 3;
+        ETargetOperator Op = bUseMultiply ? ETargetOperator::Multiply : ETargetOperator::Add;
+        int32 Value = bUseMultiply
+            ? FMath::RandRange(MultiplyValueMin, MultiplyValueMax)
+            : FMath::RandRange(AddValueMin, AddValueMax);
 
-        ETargetOperator Op = Operators[FMath::RandRange(0, Operators.Num() - 1)];
-        int32 Value = 0;
+        float TestScore = RunningScore;
+        if (Op == ETargetOperator::Multiply) TestScore += Value * 10;
+        else TestScore += Value;
 
-        if (Op == ETargetOperator::Divide)
+        if (TestScore <= 100000.f)
         {
-            TArray<int32> SafeDivisors = { 2, 3, 4, 5 };
-            Value = SafeDivisors[FMath::RandRange(0, SafeDivisors.Num() - 1)];
-        }
-        else if (Op == ETargetOperator::Multiply)
-        {
-            Value = FMath::RandRange(MultiplyValueMin, MultiplyValueMax);
-        }
-        else if (Op == ETargetOperator::Subtract)
-        {
-            Value = FMath::RandRange(SubtractValueMin, SubtractValueMax);
+            TargetData.Add({ Op, Value });
+            RunningScore = TestScore;
+            if (Op == ETargetOperator::Add) TrueMaxPossible += Value;
+            else if (Op == ETargetOperator::Multiply) TrueMaxPossible += Value * 10;
         }
         else
         {
-            Value = FMath::RandRange(AddValueMin, AddValueMax);
+            int32 AddVal = FMath::RandRange(AddValueMin, AddValueMax);
+            TargetData.Add({ ETargetOperator::Add, AddVal });
+            RunningScore += AddVal;
+            TrueMaxPossible += AddVal;
         }
+    }
 
-        // simulate what this would do to the score
+    // phase 2 — fill remaining with Add and Subtract only
+    while (TargetData.Num() < TargetCountLimit)
+    {
+        TArray<ETargetOperator> SafeOps;
+        SafeOps.Add(ETargetOperator::Add);
+
+        if (bAllowSubtract && RunningScore - SubtractValueMax > 10)
+            SafeOps.Add(ETargetOperator::Subtract);
+
+        ETargetOperator Op = SafeOps[FMath::RandRange(0, SafeOps.Num() - 1)];
+        int32 Value = Op == ETargetOperator::Subtract
+            ? FMath::RandRange(SubtractValueMin, SubtractValueMax)
+            : FMath::RandRange(AddValueMin, AddValueMax);
+
         float TestScore = RunningScore;
-        switch (Op)
-        {
-            case ETargetOperator::Add:      TestScore += Value; break;
-            case ETargetOperator::Subtract: TestScore -= Value; break;
-            case ETargetOperator::Multiply: TestScore *= Value; break;
-            case ETargetOperator::Divide:
-                if (Value != 0) TestScore /= Value;
-                break;
-        }
+        if (Op == ETargetOperator::Subtract) TestScore -= Value;
+        else TestScore += Value;
 
-        // only add if score stays positive
         if (TestScore > 0)
         {
             TargetData.Add({ Op, Value });
             RunningScore = TestScore;
+            if (Op == ETargetOperator::Add) TrueMaxPossible += Value;
         }
     }
 
-    // pad with Add targets if still under minimum
-    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets)
-    {
-        int32 Value = FMath::RandRange(AddValueMin, AddValueMax);
-        TargetData.Add({ ETargetOperator::Add, Value });
-        RunningScore += Value;
-    }
+    int32 MaxPossible = TrueMaxPossible;
+    int32 GoalScore = 0;
 
-    int32 GoalScore = MinimumGoalScore;
+    if (bRandomGoalScore)
+    {
+        float Percentage = FMath::FRandRange(0.4f, 0.8f);
+        GoalScore = FMath::Max(10, FMath::RoundToInt(MaxPossible * Percentage));
+
+        int32 ClampedMin = FMath::Max(10, RandomGoalScoreMin);
+        int32 ClampedMax = FMath::Max(ClampedMin, RandomGoalScoreMax);
+        GoalScore = FMath::Clamp(GoalScore, ClampedMin, ClampedMax);
+
+        if (GoalScore > MaxPossible)
+            GoalScore = FMath::Max(10, FMath::RoundToInt(MaxPossible * 0.6f));
+    }
+    else
+    {
+        GoalScore = FMath::Max(10, FixedGoalScore);
+
+        if (GoalScore > MaxPossible)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ShootingTargetSpawner: Fixed goal %d is higher than max possible %d — clamping"), GoalScore, MaxPossible);
+            GoalScore = FMath::Max(10, FMath::RoundToInt(MaxPossible * 0.6f));
+        }
+    }
 
     AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode());
     if (GM)
@@ -118,7 +141,7 @@ void AShootingTargetSpawner::SpawnTargets()
         GM->SetGoalScore(GoalScore);
         GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
             FString::Printf(TEXT("Goal Score: %d | Max Possible: %d | Targets: %d"),
-                GoalScore, FMath::RoundToInt(RunningScore), TargetData.Num()));
+                GoalScore, MaxPossible, TargetData.Num()));
     }
 
     for (const FTargetData& Data : TargetData)
@@ -137,8 +160,6 @@ void AShootingTargetSpawner::SpawnTargets()
             TargetClass, SpawnLocation, SpawnRotation, SpawnParams);
 
         if (Target)
-        {
             Target->SetOperatorAndValue(Data.Op, Data.Value);
-        }
     }
 }

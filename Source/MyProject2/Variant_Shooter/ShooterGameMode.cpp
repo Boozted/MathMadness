@@ -40,12 +40,19 @@ void AShooterGameMode::ApplyTargetOperator(ETargetOperator Op, int32 Value)
 {
     switch (Op)
     {
-        case ETargetOperator::Add:      CurrentScore += Value; break;
-        case ETargetOperator::Subtract: CurrentScore -= Value; break;
-        case ETargetOperator::Multiply: CurrentScore *= Value; break;
-        case ETargetOperator::Divide:   
-            if (Value != 0) CurrentScore /= Value; 
-            break;
+    case ETargetOperator::Add:
+        CurrentScore += Value;
+        break;
+    case ETargetOperator::Subtract:
+        CurrentScore -= Value;
+        break;
+    case ETargetOperator::Multiply:
+        // multiply adds the value multiplied by a base amount, not the whole score
+        CurrentScore += Value * 10;
+        break;
+    case ETargetOperator::Divide:
+        if (Value != 0) CurrentScore /= Value;
+        break;
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Score: %d / Goal: %d"), GetScore(), GoalScore);

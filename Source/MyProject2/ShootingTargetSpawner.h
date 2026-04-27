@@ -28,9 +28,21 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Spawner|Targets", meta = (ClampMin = 1, ClampMax = 100))
     int32 MaxTargets = 10;
 
-    // minimum score the player must reach to win
-    UPROPERTY(EditAnywhere, Category = "Spawner|Score", meta = (ClampMin = 0))
-    int32 MinimumGoalScore = 100;
+    // if true, goal score is randomly generated above RandomGoalScoreMin
+    UPROPERTY(EditAnywhere, Category = "Spawner|Score")
+    bool bRandomGoalScore = true;
+
+    // minimum value for the random goal score
+    UPROPERTY(EditAnywhere, Category = "Spawner|Score", meta = (ClampMin = 10, EditCondition = "bRandomGoalScore"))
+    int32 RandomGoalScoreMin = 10;
+
+    // maximum value for the random goal score
+    UPROPERTY(EditAnywhere, Category = "Spawner|Score", meta = (ClampMin = 10, EditCondition = "bRandomGoalScore"))
+    int32 RandomGoalScoreMax = 500;
+
+    // fixed goal score used when bRandomGoalScore is false
+    UPROPERTY(EditAnywhere, Category = "Spawner|Score", meta = (ClampMin = 10, EditCondition = "!bRandomGoalScore"))
+    int32 FixedGoalScore = 100;
 
     // spawn area half size on X axis in cm
     UPROPERTY(EditAnywhere, Category = "Spawner|Area", meta = (ClampMin = 100, ClampMax = 50000, Units = "cm"))
@@ -76,8 +88,7 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Spawner|Operators")
     bool bAllowMultiply = true;
 
-    UPROPERTY(EditAnywhere, Category = "Spawner|Operators")
-    bool bAllowDivide = true;
+    
 
     void SpawnTargets();
 };

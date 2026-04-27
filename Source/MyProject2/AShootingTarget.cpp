@@ -90,6 +90,9 @@ void AShootingTarget::SetLabelText(const FString& NewText)
 
 void AShootingTarget::OnHit()
 {
+    if (!IsValid(this)) return;
+    if (!GetWorld()) return;
+
     AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode());
     if (GM)
     {
@@ -100,5 +103,8 @@ void AShootingTarget::OnHit()
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, Message);
     }
 
-    Destroy();
+    if (IsValid(this))
+    {
+        Destroy();
+    }
 }
