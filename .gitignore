@@ -4,6 +4,7 @@ Saved/
 DerivedDataCache/
 Build/
 .vs/
+.idea/
 *.sln
 *.suo
 *.user
@@ -13,3 +14,7 @@ Build/
 *.opendb
 *.VC.db
 *.VC.opendb
+*.pdb
+*.pch
+*.obj
+*.bin
