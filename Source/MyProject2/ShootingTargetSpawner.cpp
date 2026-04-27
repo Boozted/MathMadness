@@ -45,13 +45,12 @@ void AShootingTargetSpawner::SpawnTargets()
 
     TArray<FTargetData> TargetData;
     float RunningScore = 0.f;
-    int32 TrueMaxPossible = 0;
+    
 
     // always start with Add
     int32 FirstValue = FMath::RandRange(AddValueMin, AddValueMax);
     TargetData.Add({ ETargetOperator::Add, FirstValue });
     RunningScore += FirstValue;
-    TrueMaxPossible += FirstValue;
 
     // phase 1 — build score with Add and Multiply
     int32 BuildPhaseCount = FMath::Max(1, TargetCountLimit / 2);
@@ -71,15 +70,14 @@ void AShootingTargetSpawner::SpawnTargets()
         {
             TargetData.Add({ Op, Value });
             RunningScore = TestScore;
-            if (Op == ETargetOperator::Add) TrueMaxPossible += Value;
-            else if (Op == ETargetOperator::Multiply) TrueMaxPossible += Value * 10;
+            
         }
         else
         {
             int32 AddVal = FMath::RandRange(AddValueMin, AddValueMax);
             TargetData.Add({ ETargetOperator::Add, AddVal });
             RunningScore += AddVal;
-            TrueMaxPossible += AddVal;
+            
         }
     }
 
@@ -105,8 +103,29 @@ void AShootingTargetSpawner::SpawnTargets()
         {
             TargetData.Add({ Op, Value });
             RunningScore = TestScore;
-            if (Op == ETargetOperator::Add) TrueMaxPossible += Value;
+           
         }
+    }
+
+    int32 TrueMaxPossible = 0;
+    for (const FTargetData& Data : TargetData)
+    {
+        if (Data.Op == ETargetOperator::Add)
+            TrueMaxPossible += Data.Value;
+    }
+
+    TArray<int32> MultiplyValues;
+    for (const FTargetData& Data : TargetData)
+    {
+        if (Data.Op == ETargetOperator::Multiply)
+            MultiplyValues.Add(Data.Value);
+    }
+
+    MultiplyValues.Sort();
+
+    for (int32 MultVal : MultiplyValues)
+    {
+        TrueMaxPossible *= MultVal;
     }
 
     int32 MaxPossible = TrueMaxPossible;
