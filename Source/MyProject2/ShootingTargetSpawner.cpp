@@ -41,22 +41,23 @@ void AShootingTargetSpawner::SpawnTargets()
         int32 Value;
     };
 
-    TArray<ETargetOperator> Operators = {
-        ETargetOperator::Add,
-        ETargetOperator::Subtract,
-        ETargetOperator::Multiply,
-        ETargetOperator::Divide
-    };
+    // build operator list based on settings
+    TArray<ETargetOperator> Operators;
+    Operators.Add(ETargetOperator::Add);
+    if (bAllowSubtract) Operators.Add(ETargetOperator::Subtract);
+    if (bAllowMultiply) Operators.Add(ETargetOperator::Multiply);
+    if (bAllowDivide)   Operators.Add(ETargetOperator::Divide);
 
     TArray<FTargetData> TargetData;
     float RunningScore = 0.f;
 
     // always start with Add so there is a base score
-    TargetData.Add({ ETargetOperator::Add, FMath::RandRange(10, 50) });
-    RunningScore += TargetData[0].Value;
+    int32 FirstValue = FMath::RandRange(AddValueMin, AddValueMax);
+    TargetData.Add({ ETargetOperator::Add, FirstValue });
+    RunningScore += FirstValue;
 
     int32 Attempts = 0;
-    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets && Attempts < 100)
+    while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets && Attempts < 200)
     {
         Attempts++;
 
@@ -70,11 +71,15 @@ void AShootingTargetSpawner::SpawnTargets()
         }
         else if (Op == ETargetOperator::Multiply)
         {
-            Value = FMath::RandRange(2, 5);
+            Value = FMath::RandRange(MultiplyValueMin, MultiplyValueMax);
+        }
+        else if (Op == ETargetOperator::Subtract)
+        {
+            Value = FMath::RandRange(SubtractValueMin, SubtractValueMax);
         }
         else
         {
-            Value = FMath::RandRange(10, 50);
+            Value = FMath::RandRange(AddValueMin, AddValueMax);
         }
 
         // simulate what this would do to the score
@@ -89,7 +94,7 @@ void AShootingTargetSpawner::SpawnTargets()
                 break;
         }
 
-        // only add this target if it keeps the score positive and moving toward goal
+        // only add if score stays positive
         if (TestScore > 0)
         {
             TargetData.Add({ Op, Value });
@@ -97,10 +102,10 @@ void AShootingTargetSpawner::SpawnTargets()
         }
     }
 
-    // if we still haven't hit minimum, pad with Add targets
+    // pad with Add targets if still under minimum
     while (FMath::Abs(RunningScore) < MinimumGoalScore && TargetData.Num() < MaxTargets)
     {
-        int32 Value = FMath::RandRange(10, 50);
+        int32 Value = FMath::RandRange(AddValueMin, AddValueMax);
         TargetData.Add({ ETargetOperator::Add, Value });
         RunningScore += Value;
     }
@@ -118,10 +123,11 @@ void AShootingTargetSpawner::SpawnTargets()
 
     for (const FTargetData& Data : TargetData)
     {
-        float RandomX = FMath::FRandRange(-SpawnAreaHalfSize, SpawnAreaHalfSize);
-        float RandomY = FMath::FRandRange(-SpawnAreaHalfSize, SpawnAreaHalfSize);
+        float RandomX = FMath::FRandRange(-SpawnAreaHalfSizeX, SpawnAreaHalfSizeX);
+        float RandomY = FMath::FRandRange(-SpawnAreaHalfSizeY, SpawnAreaHalfSizeY);
+        float RandomZ = SpawnHeightOffset + FMath::FRandRange(0.f, SpawnHeightVariance);
 
-        FVector SpawnLocation = GetActorLocation() + FVector(RandomX, RandomY, 0.f);
+        FVector SpawnLocation = GetActorLocation() + FVector(RandomX, RandomY, RandomZ);
         FRotator SpawnRotation = GetActorRotation();
 
         FActorSpawnParameters SpawnParams;
