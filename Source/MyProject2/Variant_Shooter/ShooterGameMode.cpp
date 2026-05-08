@@ -3,6 +3,7 @@
 #include "Variant_Shooter/ShooterGameMode.h"
 #include "ShooterUI.h"
 #include "AShootingTarget.h"
+#include "ShooterPortal.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -47,7 +48,6 @@ void AShooterGameMode::ApplyTargetOperator(ETargetOperator Op, int32 Value)
         CurrentScore -= Value;
         break;
     case ETargetOperator::Multiply:
-        // multiply adds the value multiplied by a base amount, not the whole score
         CurrentScore *= Value;
         break;
     case ETargetOperator::Divide:
@@ -64,12 +64,27 @@ void AShooterGameMode::CheckGoal()
     TArray<AActor*> RemainingTargets;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AShootingTarget::StaticClass(), RemainingTargets);
 
+    // filter out invalid actors
+    RemainingTargets.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
+
     if (RemainingTargets.Num() == 0)
     {
         if (GetScore() >= GoalScore)
         {
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
                 FString::Printf(TEXT("Goal reached! Head to the portal. Score: %d / %d"), GetScore(), GoalScore));
+
+            TArray<AActor*> Portals;
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AShooterPortal::StaticClass(), Portals);
+
+            for (AActor* Portal : Portals)
+            {
+                if (!IsValid(Portal)) continue;
+                if (AShooterPortal* P = Cast<AShooterPortal>(Portal))
+                {
+                    P->ShowPortal();
+                }
+            }
         }
         else
         {

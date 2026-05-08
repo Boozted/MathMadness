@@ -11,6 +11,12 @@ class MYPROJECT2_API AShooterPortal : public AActor
 
 public:
 	AShooterPortal();
+	
+	void ShowPortal();
+    void HidePortal();
+    
+    UPROPERTY(EditAnywhere, Category = "Portal")
+    bool bStartHidden = true;
 
 protected:
 	virtual void BeginPlay() override;

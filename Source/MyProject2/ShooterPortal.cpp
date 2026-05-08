@@ -13,7 +13,14 @@ AShooterPortal::AShooterPortal()
     PortalMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PortalMesh"));
     RootComponent = PortalMesh;
     PortalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(
+    TEXT("/Engine/BasicShapes/Plane.Plane"));
+    if (MeshAsset.Succeeded())
+    {
+        PortalMesh->SetStaticMesh(MeshAsset.Object);
+    }
+    PortalMesh->SetRelativeScale3D(FVector(2.f, 2.f, 2.f));
+    
     TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
     TriggerBox->SetupAttachment(RootComponent);
     TriggerBox->SetBoxExtent(FVector(50.f, 50.f, 100.f));
@@ -27,6 +34,11 @@ void AShooterPortal::BeginPlay()
     Super::BeginPlay();
 
     TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AShooterPortal::OnOverlapBegin);
+    
+    if (bStartHidden)
+    {
+        HidePortal();
+    }
 }
 
 void AShooterPortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -55,4 +67,16 @@ void AShooterPortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor*
                 GM->GetScore(),
                 GM->GetGoalScore()));
     }
+}
+void AShooterPortal::ShowPortal()
+{
+    PortalMesh->SetVisibility(true);
+    TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan, TEXT("Portal unlocked!"));
+}
+
+void AShooterPortal::HidePortal()
+{
+    PortalMesh->SetVisibility(false);
+    TriggerBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
