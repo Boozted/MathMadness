@@ -1,8 +1,11 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "AShootingTarget.h"
+#include "ShooterGameInstance.h"
 #include "ShooterGameMode.generated.h"
 
 class UShooterUI;
@@ -27,9 +30,25 @@ protected:
 	UPROPERTY()
 	int32 GoalScore = 0;
 
-	// level to load when goal is reached
+	UPROPERTY()
+	bool bGoalReached = false;
+
+	UPROPERTY()
+	int32 LevelNumber = 1;
+
 	UPROPERTY(EditAnywhere, Category="Shooter")
-	FName NextLevelName = FName("NextLevel");
+	FName NextLevelName = FName("Lvl_Shooter");
+	
+	UPROPERTY(EditAnywhere, Category="Shooter")
+	float StartingTime = 120.f; 
+
+	UPROPERTY()
+	float TimeRemaining = 0.f;
+
+	FTimerHandle CountdownTimer;
+
+	void TickCountdown();
+	void OnTimerExpired();
 
 protected:
 
@@ -43,11 +62,15 @@ public:
 
 	void ApplyTargetOperator(ETargetOperator Op, int32 Value);
 
-	void SetGoalScore(int32 InGoal) { GoalScore = InGoal; }
+	void SetGoalScore(int32 InGoal);
+
+	void ApplyGoalMultiplier();
 
 	int32 GetScore() const { return FMath::RoundToInt(CurrentScore); }
 
 	int32 GetGoalScore() const { return GoalScore; }
 
 	void CheckGoal();
+
+	void LogScoreToFile();
 };

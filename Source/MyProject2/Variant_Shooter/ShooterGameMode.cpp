@@ -4,9 +4,13 @@
 #include "ShooterUI.h"
 #include "AShootingTarget.h"
 #include "ShooterPortal.h"
+#include "ShooterGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 void AShooterGameMode::BeginPlay()
 {
@@ -14,6 +18,23 @@ void AShooterGameMode::BeginPlay()
 
     ShooterUI = CreateWidget<UShooterUI>(UGameplayStatics::GetPlayerController(GetWorld(), 0), ShooterUIClass);
     ShooterUI->AddToViewport(0);
+
+    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
+    {
+        LevelNumber = GI->LevelNumber;
+        UE_LOG(LogTemp, Warning, TEXT("Level %d | Multiplier: %.2f"), LevelNumber, GI->GoalScoreMultiplier);
+        
+        
+    }
+    
+    // start the countdown
+    TimeRemaining = StartingTime;
+
+    // reduce time slightly each level — 5 seconds less per level, minimum 30 seconds
+    float LevelPenalty = (LevelNumber - 1) * 5.f;
+    TimeRemaining = FMath::Max(30.f, TimeRemaining - LevelPenalty);
+
+    GetWorld()->GetTimerManager().SetTimer(CountdownTimer, this, &AShooterGameMode::TickCountdown, 1.f, true);
 }
 
 void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
@@ -59,37 +80,116 @@ void AShooterGameMode::ApplyTargetOperator(ETargetOperator Op, int32 Value)
     CheckGoal();
 }
 
+void AShooterGameMode::SetGoalScore(int32 InGoal)
+{
+    GoalScore = InGoal;
+
+    // always read level number fresh from game instance
+    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
+    {
+        LevelNumber = GI->LevelNumber;
+    }
+
+    ApplyGoalMultiplier();
+
+    GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
+        FString::Printf(TEXT("Level %d | Goal Score: %d"), LevelNumber, GoalScore));
+}
+
+void AShooterGameMode::ApplyGoalMultiplier()
+{
+    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
+    {
+        GoalScore = FMath::RoundToInt(GoalScore * GI->GoalScoreMultiplier);
+        UE_LOG(LogTemp, Warning, TEXT("Adjusted Goal Score: %d (Multiplier: %.2f)"), GoalScore, GI->GoalScoreMultiplier);
+    }
+}
+
 void AShooterGameMode::CheckGoal()
 {
-    TArray<AActor*> RemainingTargets;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AShootingTarget::StaticClass(), RemainingTargets);
+    if (bGoalReached) return;
 
-    // filter out invalid actors
-    RemainingTargets.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
-
-    if (RemainingTargets.Num() == 0)
+    if (GetScore() >= GoalScore)
     {
-        if (GetScore() >= GoalScore)
+        bGoalReached = true;
+
+        LogScoreToFile();
+
+        if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
         {
-            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
-                FString::Printf(TEXT("Goal reached! Head to the portal. Score: %d / %d"), GetScore(), GoalScore));
+            GI->AdvanceLevel();
+        }
 
-            TArray<AActor*> Portals;
-            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AShooterPortal::StaticClass(), Portals);
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+            FString::Printf(TEXT("Goal reached! Head to the portal. Score: %d / %d"), GetScore(), GoalScore));
 
-            for (AActor* Portal : Portals)
+        TArray<AActor*> Portals;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AShooterPortal::StaticClass(), Portals);
+
+        for (AActor* Portal : Portals)
+        {
+            if (!IsValid(Portal)) continue;
+            if (AShooterPortal* P = Cast<AShooterPortal>(Portal))
             {
-                if (!IsValid(Portal)) continue;
-                if (AShooterPortal* P = Cast<AShooterPortal>(Portal))
-                {
-                    P->ShowPortal();
-                }
+                P->ShowPortal();
             }
         }
-        else
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-                FString::Printf(TEXT("Not enough score. Got %d, needed %d"), GetScore(), GoalScore));
-        }
     }
+}
+
+void AShooterGameMode::LogScoreToFile()
+{
+    FString LogEntry = FString::Printf(TEXT("Level: %d | Goal: %d | Final Score: %d\n"),
+        LevelNumber, GoalScore, GetScore());
+
+    FString FilePath = FPaths::ProjectDir() + TEXT("ScoreLog.txt");
+
+    // if level 1 overwrite the file, otherwise append
+    uint32 WriteFlags = LevelNumber == 1 ? FILEWRITE_None : FILEWRITE_Append;
+
+    FFileHelper::SaveStringToFile(
+        LogEntry,
+        *FilePath,
+        FFileHelper::EEncodingOptions::AutoDetect,
+        &IFileManager::Get(),
+        WriteFlags
+    );
+
+    UE_LOG(LogTemp, Warning, TEXT("Score logged to: %s"), *FilePath);
+}
+void AShooterGameMode::TickCountdown()
+{
+    if (bGoalReached) return;
+
+    TimeRemaining -= 1.f;
+
+    GEngine->AddOnScreenDebugMessage(1, 1.1f, FColor::White,
+        FString::Printf(TEXT("Time: %.0f seconds"), TimeRemaining));
+
+    if (TimeRemaining <= 10.f)
+    {
+        GEngine->AddOnScreenDebugMessage(2, 1.1f, FColor::Red,
+            TEXT("Hurry up!"));
+    }
+
+    if (TimeRemaining <= 0.f)
+    {
+        OnTimerExpired();
+    }
+}
+
+void AShooterGameMode::OnTimerExpired()
+{
+    GetWorld()->GetTimerManager().ClearTimer(CountdownTimer);
+
+    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Time's up! Restarting..."));
+
+    // reset game instance so level and multiplier don't carry over on timeout
+    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
+    {
+        GI->LevelNumber = 1;
+        GI->GoalScoreMultiplier = 1.0f;
+    }
+
+    UGameplayStatics::OpenLevel(GetWorld(), FName("Lvl_Shooter"));
 }

@@ -158,9 +158,7 @@ void AShootingTargetSpawner::SpawnTargets()
     if (GM)
     {
         GM->SetGoalScore(GoalScore);
-        GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
-            FString::Printf(TEXT("Goal Score: %d | Max Possible: %d | Targets: %d"),
-                GoalScore, MaxPossible, TargetData.Num()));
+        
     }
 
     for (const FTargetData& Data : TargetData)

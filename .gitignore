@@ -18,3 +18,4 @@ Build/
 *.pch
 *.obj
 *.bin
+/ScoreLog.txt
