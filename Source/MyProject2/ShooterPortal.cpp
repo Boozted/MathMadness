@@ -45,7 +45,7 @@ void AShooterPortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor*
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
     bool bFromSweep, const FHitResult& SweepResult)
 {
-    // only trigger for the player
+    
     if (!Cast<AShooterCharacter>(OtherActor)) return;
 
     AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode());

@@ -12,6 +12,9 @@ class MYPROJECT2_API UShooterGameInstance : public UGameInstance
 public:
 	UPROPERTY()
 	int32 LevelNumber = 1;
+	
+	UPROPERTY()
+	int32 LastGoalScore = 0;
 
 	UPROPERTY()
 	float GoalScoreMultiplier = 1.0f;

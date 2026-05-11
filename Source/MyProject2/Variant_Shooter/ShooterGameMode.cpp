@@ -27,10 +27,10 @@ void AShooterGameMode::BeginPlay()
         
     }
     
-    // start the countdown
+    
     TimeRemaining = StartingTime;
 
-    // reduce time slightly each level — 5 seconds less per level, minimum 30 seconds
+    
     float LevelPenalty = (LevelNumber - 1) * 5.f;
     TimeRemaining = FMath::Max(30.f, TimeRemaining - LevelPenalty);
 
@@ -84,13 +84,19 @@ void AShooterGameMode::SetGoalScore(int32 InGoal)
 {
     GoalScore = InGoal;
 
-    // always read level number fresh from game instance
     if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
     {
         LevelNumber = GI->LevelNumber;
-    }
+        
+        if (GI->LastGoalScore > 0)
+        {
+            int32 MinGoal = FMath::RoundToInt(GI->LastGoalScore * 1.1f);
+            GoalScore = FMath::Max(GoalScore, MinGoal);
+        }
 
-    ApplyGoalMultiplier();
+        
+        GI->LastGoalScore = GoalScore;
+    }
 
     GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
         FString::Printf(TEXT("Level %d | Goal Score: %d"), LevelNumber, GoalScore));
@@ -100,14 +106,19 @@ void AShooterGameMode::ApplyGoalMultiplier()
 {
     if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
     {
+        int32 OldGoal = GoalScore;
         GoalScore = FMath::RoundToInt(GoalScore * GI->GoalScoreMultiplier);
-        UE_LOG(LogTemp, Warning, TEXT("Adjusted Goal Score: %d (Multiplier: %.2f)"), GoalScore, GI->GoalScoreMultiplier);
+        UE_LOG(LogTemp, Warning, TEXT("Goal before multiplier: %d | After: %d | Multiplier: %.2f"), 
+            OldGoal, GoalScore, GI->GoalScoreMultiplier);
     }
 }
 
 void AShooterGameMode::CheckGoal()
 {
     if (bGoalReached) return;
+
+    UE_LOG(LogTemp, Warning, TEXT("CheckGoal: Score=%d GoalScore=%d bGoalReached=%d"), 
+        GetScore(), GoalScore, bGoalReached);
 
     if (GetScore() >= GoalScore)
     {
@@ -144,7 +155,7 @@ void AShooterGameMode::LogScoreToFile()
 
     FString FilePath = FPaths::ProjectDir() + TEXT("ScoreLog.txt");
 
-    // if level 1 overwrite the file, otherwise append
+    
     uint32 WriteFlags = LevelNumber == 1 ? FILEWRITE_None : FILEWRITE_Append;
 
     FFileHelper::SaveStringToFile(
@@ -184,7 +195,7 @@ void AShooterGameMode::OnTimerExpired()
 
     GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Time's up! Restarting..."));
 
-    // reset game instance so level and multiplier don't carry over on timeout
+    
     if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
     {
         GI->LevelNumber = 1;

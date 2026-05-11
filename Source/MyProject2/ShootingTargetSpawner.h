@@ -81,7 +81,7 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Spawner|Values", meta = (ClampMin = 2))
     int32 MultiplyValueMax = 5;
 
-    // whether to allow subtract and divide operators
+    // whether to allow subtract operator
     UPROPERTY(EditAnywhere, Category = "Spawner|Operators")
     bool bAllowSubtract = true;
 

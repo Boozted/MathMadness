@@ -47,12 +47,12 @@ void AShootingTargetSpawner::SpawnTargets()
     float RunningScore = 0.f;
     
 
-    // always start with Add
+    
     int32 FirstValue = FMath::RandRange(AddValueMin, AddValueMax);
     TargetData.Add({ ETargetOperator::Add, FirstValue });
     RunningScore += FirstValue;
 
-    // phase 1 — build score with Add and Multiply
+    
     int32 BuildPhaseCount = FMath::Max(1, TargetCountLimit / 2);
     for (int32 i = 1; i < BuildPhaseCount; i++)
     {
@@ -81,7 +81,7 @@ void AShootingTargetSpawner::SpawnTargets()
         }
     }
 
-    // phase 2 — fill remaining with Add and Subtract only
+    
     while (TargetData.Num() < TargetCountLimit)
     {
         TArray<ETargetOperator> SafeOps;
