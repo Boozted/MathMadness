@@ -1,6 +1,7 @@
 ﻿#include "ShootingTargetSpawner.h"
 #include "AShootingTarget.h"
 #include "ShooterGameMode.h"
+#include "ShooterGameInstance.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -43,18 +44,28 @@ void AShootingTargetSpawner::SpawnTargets()
 
     int32 TargetCountLimit = FMath::RandRange(MinTargets, MaxTargets);
 
+    // find out what minimum the targets need to produce based on last level
+    int32 MinimumNeeded = 0;
+    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
+    {
+        if (GI->LastGoalScore > 0)
+        {
+            MinimumNeeded = FMath::RoundToInt(GI->LastGoalScore * 1.05f);
+        }
+    }
+
     TArray<FTargetData> TargetData;
     float RunningScore = 0.f;
-    
 
-    
     int32 FirstValue = FMath::RandRange(AddValueMin, AddValueMax);
     TargetData.Add({ ETargetOperator::Add, FirstValue });
     RunningScore += FirstValue;
 
-    
+    // phase 1 — build score with Add and Multiply
+    // keep going until we meet MinimumNeeded or hit the target count limit
     int32 BuildPhaseCount = FMath::Max(1, TargetCountLimit / 2);
-    for (int32 i = 1; i < BuildPhaseCount; i++)
+    int32 i = 1;
+    while (i < BuildPhaseCount || (RunningScore < MinimumNeeded && TargetData.Num() < MaxTargets))
     {
         bool bUseMultiply = bAllowMultiply && FMath::RandRange(0, 9) < 3;
         ETargetOperator Op = bUseMultiply ? ETargetOperator::Multiply : ETargetOperator::Add;
@@ -63,25 +74,24 @@ void AShootingTargetSpawner::SpawnTargets()
             : FMath::RandRange(AddValueMin, AddValueMax);
 
         float TestScore = RunningScore;
-        if (Op == ETargetOperator::Multiply) TestScore += Value * 10;
+        if (Op == ETargetOperator::Multiply) TestScore *= Value;
         else TestScore += Value;
 
         if (TestScore <= 100000.f)
         {
             TargetData.Add({ Op, Value });
             RunningScore = TestScore;
-            
         }
         else
         {
             int32 AddVal = FMath::RandRange(AddValueMin, AddValueMax);
             TargetData.Add({ ETargetOperator::Add, AddVal });
             RunningScore += AddVal;
-            
         }
+        i++;
     }
 
-    
+    // phase 2 — fill remaining slots with Add and Subtract
     while (TargetData.Num() < TargetCountLimit)
     {
         TArray<ETargetOperator> SafeOps;
@@ -103,10 +113,10 @@ void AShootingTargetSpawner::SpawnTargets()
         {
             TargetData.Add({ Op, Value });
             RunningScore = TestScore;
-           
         }
     }
 
+    // calculate true max possible
     int32 TrueMaxPossible = 0;
     for (const FTargetData& Data : TargetData)
     {
@@ -158,7 +168,6 @@ void AShootingTargetSpawner::SpawnTargets()
     if (GM)
     {
         GM->SetGoalScore(GoalScore);
-        
     }
 
     for (const FTargetData& Data : TargetData)

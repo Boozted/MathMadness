@@ -87,10 +87,14 @@ void AShooterGameMode::SetGoalScore(int32 InGoal)
     if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
     {
         LevelNumber = GI->LevelNumber;
+
+        
+        GoalScore = FMath::RoundToInt(GoalScore * GI->GoalScoreMultiplier);
+
         
         if (GI->LastGoalScore > 0)
         {
-            int32 MinGoal = FMath::RoundToInt(GI->LastGoalScore * 1.1f);
+            int32 MinGoal = FMath::RoundToInt(GI->LastGoalScore * 1.05f);
             GoalScore = FMath::Max(GoalScore, MinGoal);
         }
 
