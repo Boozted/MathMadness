@@ -44,7 +44,7 @@ void AShootingTargetSpawner::SpawnTargets()
 
     int32 TargetCountLimit = FMath::RandRange(MinTargets, MaxTargets);
 
-    // find out what minimum the targets need to produce based on last level
+    
     int32 MinimumNeeded = 0;
     if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
     {
@@ -61,8 +61,7 @@ void AShootingTargetSpawner::SpawnTargets()
     TargetData.Add({ ETargetOperator::Add, FirstValue });
     RunningScore += FirstValue;
 
-    // phase 1 — build score with Add and Multiply
-    // keep going until we meet MinimumNeeded or hit the target count limit
+    
     int32 BuildPhaseCount = FMath::Max(1, TargetCountLimit / 2);
     int32 i = 1;
     while (i < BuildPhaseCount || (RunningScore < MinimumNeeded && TargetData.Num() < MaxTargets))
@@ -91,7 +90,7 @@ void AShootingTargetSpawner::SpawnTargets()
         i++;
     }
 
-    // phase 2 — fill remaining slots with Add and Subtract
+    
     while (TargetData.Num() < TargetCountLimit)
     {
         TArray<ETargetOperator> SafeOps;
@@ -116,7 +115,7 @@ void AShootingTargetSpawner::SpawnTargets()
         }
     }
 
-    // calculate true max possible
+    
     int32 TrueMaxPossible = 0;
     for (const FTargetData& Data : TargetData)
     {
