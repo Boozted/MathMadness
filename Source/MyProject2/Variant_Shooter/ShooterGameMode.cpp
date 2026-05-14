@@ -88,17 +88,14 @@ void AShooterGameMode::SetGoalScore(int32 InGoal)
     {
         LevelNumber = GI->LevelNumber;
 
-        
         GoalScore = FMath::RoundToInt(GoalScore * GI->GoalScoreMultiplier);
 
-        
         if (GI->LastGoalScore > 0)
         {
             int32 MinGoal = FMath::RoundToInt(GI->LastGoalScore * 1.05f);
             GoalScore = FMath::Max(GoalScore, MinGoal);
         }
 
-        
         GI->LastGoalScore = GoalScore;
     }
 
@@ -106,16 +103,7 @@ void AShooterGameMode::SetGoalScore(int32 InGoal)
         FString::Printf(TEXT("Level %d | Goal Score: %d"), LevelNumber, GoalScore));
 }
 
-void AShooterGameMode::ApplyGoalMultiplier()
-{
-    if (UShooterGameInstance* GI = Cast<UShooterGameInstance>(GetGameInstance()))
-    {
-        int32 OldGoal = GoalScore;
-        GoalScore = FMath::RoundToInt(GoalScore * GI->GoalScoreMultiplier);
-        UE_LOG(LogTemp, Warning, TEXT("Goal before multiplier: %d | After: %d | Multiplier: %.2f"), 
-            OldGoal, GoalScore, GI->GoalScoreMultiplier);
-    }
-}
+
 
 void AShooterGameMode::CheckGoal()
 {

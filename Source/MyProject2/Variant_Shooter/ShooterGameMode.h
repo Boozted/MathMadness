@@ -64,7 +64,7 @@ public:
 
 	void SetGoalScore(int32 InGoal);
 
-	void ApplyGoalMultiplier();
+	
 
 	int32 GetScore() const { return FMath::RoundToInt(CurrentScore); }
 
